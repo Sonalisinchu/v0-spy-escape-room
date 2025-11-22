@@ -97,6 +97,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
           setRound2PuzzleState(null)
           setLaserGrid(null)
           setRound3Attempts(3)
+
+          startTimer()
         }
 
         addLog(`Agent ${username} connected to Mission Nightfall.`)

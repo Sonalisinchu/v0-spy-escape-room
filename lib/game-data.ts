@@ -30,7 +30,7 @@ export const USERS: Record<string, string> = {
 
 export const MAX_HINTS = 2
 export const HINT_PENALTY = 5
-export const MISSION_TIME = 20 * 60 // 20 minutes in seconds
+export const MISSION_TIME = 25 * 60 // 25 minutes in seconds
 
 export const ROUND1_QUESTIONS: Round1Question[] = [
   {

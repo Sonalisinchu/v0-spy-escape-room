@@ -18,6 +18,7 @@ export function Round3() {
     decrementR3Attempts,
     updatePlayerStatus,
     currentUser,
+    stopTimer,
   } = useGame()
 
   const [pathInput, setPathInput] = useState("")
@@ -136,6 +137,7 @@ export function Round3() {
         addLog(`Agent ${currentUser}: LASER GRID solved. Mission success.`)
         updatePlayerStatus("Escaped")
         setMissionComplete(true)
+        stopTimer()
         alert(`SUCCESS: You reached the goal safely in ${steps} moves! Mission complete.`)
         return
       }
@@ -153,6 +155,7 @@ export function Round3() {
     // Check failure
     if (round3Attempts - 1 <= 0 && !missionComplete) {
       updatePlayerStatus("Failed")
+      stopTimer()
       alert("MISSION FAILED: All attempts exhausted.")
       // Reveal full grid
       revealFullGrid()
