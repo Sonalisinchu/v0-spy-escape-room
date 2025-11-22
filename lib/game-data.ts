@@ -14,11 +14,12 @@ export interface CodePuzzle {
   hint: string
 }
 
-export interface CryptoData {
-  type: "add" | "mul"
-  display: string
-  words: string[]
-  solutions: Array<{ mapping: Record<string, number>; result: number }>
+export interface LaserGrid {
+  size: number
+  grid: number[][] // 0 = safe, 1 = laser
+  start: [number, number]
+  goal: [number, number]
+  solutionPath: Array<[number, number]>
 }
 
 export const USERS: Record<string, string> = {
@@ -35,32 +36,32 @@ export const ROUND1_QUESTIONS: Round1Question[] = [
   {
     question: "I speak without a mouth and hear without ears. What am I?",
     answer: "echo",
-    reward: "4",
-    hint: "Think of places that repeat sound.",
+    reward: "6",
+    hint: "It repeats sound.",
   },
   {
-    question: "I have keys but no locks. I have space but no rooms. What am I?",
-    answer: "keyboard",
-    reward: "9",
-    hint: "You use it to type.",
-  },
-  {
-    question: "Pattern: 2, 4, 8, 16, ?",
-    answer: "32",
-    reward: "3",
+    question: "Pattern: 9 → 18 → 36 → 72 → ? (what's next?)",
+    answer: "144",
+    reward: "2",
     hint: "Each term doubles.",
   },
   {
-    question: 'Fix: prnt("Hello Agent") — what is the correct function name?',
-    answer: "print",
-    reward: "7",
-    hint: "Standard Python print() function.",
+    question: "How do you define a function in Python? (single keyword)",
+    answer: "def",
+    reward: "8",
+    hint: "Starts a function block.",
   },
   {
-    question: "Which operator checks equality in Python? (example: x __ 10)",
-    answer: "==",
-    reward: "1",
-    hint: "Use the equality operator.",
+    question: "I have branches but no fruit, trunk or leaves. What am I?",
+    answer: "bank",
+    reward: "5",
+    hint: "Money place.",
+  },
+  {
+    question: "Operator for not equal in Python?",
+    answer: "!=",
+    reward: "4",
+    hint: "Two-character operator.",
   },
 ]
 
@@ -115,34 +116,92 @@ print(x)`,
   },
 ]
 
-// Simplified cryptarithm examples
-export const CRYPTO_TEMPLATES = [
-  {
-    type: "simple" as const,
-    display: "AB + BC = CAD",
-    solution: { A: 1, B: 8, C: 2, D: 0 },
-    result: 210,
-  },
-  {
-    type: "simple" as const,
-    display: "XY × 2 = YX",
-    solution: { X: 3, Y: 6 },
-    result: 63,
-  },
-]
+export function generateLaserGrid(size = 5, obstacleProbability = 0.28): LaserGrid {
+  const grid: number[][] = Array(size)
+    .fill(0)
+    .map(() => Array(size).fill(0))
 
-export function generateCrypto(): CryptoData {
-  const template = CRYPTO_TEMPLATES[Math.floor(Math.random() * CRYPTO_TEMPLATES.length)]
+  // Carve a guaranteed path from (0,0) to (size-1, size-1)
+  const path: Array<[number, number]> = [[0, 0]]
+  let [r, c] = [0, 0]
+
+  while (r !== size - 1 || c !== size - 1) {
+    const choices: Array<[number, number]> = []
+    if (r < size - 1) choices.push([r + 1, c])
+    if (c < size - 1) choices.push([r, c + 1])
+    if (r > 0 && Math.random() < 0.08) choices.push([r - 1, c])
+    if (c > 0 && Math.random() < 0.08) choices.push([r, c - 1])
+
+    const [nr, nc] = choices[Math.floor(Math.random() * choices.length)]
+    r = nr
+    c = nc
+    if (!path.some(([pr, pc]) => pr === r && pc === c)) {
+      path.push([r, c])
+    }
+  }
+
+  // Mark path as safe
+  for (const [pr, pc] of path) {
+    grid[pr][pc] = 0
+  }
+
+  // Add obstacles to non-path cells
+  for (let i = 0; i < size; i++) {
+    for (let j = 0; j < size; j++) {
+      if (!path.some(([pr, pc]) => pr === i && pc === j)) {
+        if (Math.random() < obstacleProbability) {
+          grid[i][j] = 1
+        }
+      }
+    }
+  }
+
+  // Verify path exists using BFS
+  if (!hasPath(grid, size)) {
+    // If no path, clear all obstacles along guaranteed path
+    for (const [pr, pc] of path) {
+      grid[pr][pc] = 0
+    }
+  }
 
   return {
-    type: "add",
-    display: template.display,
-    words: [],
-    solutions: [
-      {
-        mapping: template.solution,
-        result: template.result,
-      },
-    ],
+    size,
+    grid,
+    start: [0, 0],
+    goal: [size - 1, size - 1],
+    solutionPath: path,
   }
+}
+
+function hasPath(grid: number[][], size: number): boolean {
+  if (grid[0][0] === 1) return false
+
+  const visited: boolean[][] = Array(size)
+    .fill(false)
+    .map(() => Array(size).fill(false))
+  const queue: Array<[number, number]> = [[0, 0]]
+  visited[0][0] = true
+
+  const directions = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ]
+
+  while (queue.length > 0) {
+    const [r, c] = queue.shift()!
+    if (r === size - 1 && c === size - 1) return true
+
+    for (const [dr, dc] of directions) {
+      const nr = r + dr
+      const nc = c + dc
+      if (nr >= 0 && nr < size && nc >= 0 && nc < size && !visited[nr][nc] && grid[nr][nc] === 0) {
+        visited[nr][nc] = true
+        queue.push([nr, nc])
+      }
+    }
+  }
+
+  return false
 }
