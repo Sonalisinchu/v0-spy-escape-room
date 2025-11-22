@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useGame } from "@/lib/game-context"
 import { MAX_HINTS } from "@/lib/game-data"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export function Round3() {
   const {
-    round3Crypto,
+    laserGrid,
     round3Attempts,
     hintsUsed,
     addLog,
@@ -19,46 +19,116 @@ export function Round3() {
     currentUser,
   } = useGame()
 
-  const [answer, setAnswer] = useState("")
+  const [commands, setCommands] = useState("")
+  const [currentPos, setCurrentPos] = useState({ row: 0, col: 0 })
+  const [visitedCells, setVisitedCells] = useState<Set<string>>(new Set(["0,0"]))
+  const [revealedLasers, setRevealedLasers] = useState<Set<string>>(new Set())
   const [hintUsed, setHintUsed] = useState(false)
   const [missionComplete, setMissionComplete] = useState(false)
 
+  useEffect(() => {
+    if (laserGrid && revealedLasers.size === 0) {
+      const lasersArray = Array.from(laserGrid.lasers)
+      const numToReveal = Math.min(6, Math.floor(lasersArray.length * 0.4))
+      const revealed = new Set<string>()
+
+      for (let i = 0; i < numToReveal; i++) {
+        const randomIndex = Math.floor(Math.random() * lasersArray.length)
+        revealed.add(lasersArray[randomIndex])
+      }
+
+      setRevealedLasers(revealed)
+    }
+  }, [laserGrid])
+
+  if (!laserGrid) return null
+
   const handleSubmit = () => {
-    if (!answer.trim() || round3Attempts <= 0) return
+    if (!commands.trim() || round3Attempts <= 0) return
 
-    const result = round3Crypto.solutions[0]?.result.toString()
+    const moves = commands.toUpperCase().split("")
+    let row = 0
+    let col = 0
+    const visited = new Set<string>(["0,0"])
+    let hitLaser = false
 
-    if (answer.trim() === result) {
-      addLog(`Agent ${currentUser}: CRYPTARITHM solved: ${answer}. Mission success.`)
+    // Simulate the path
+    for (const move of moves) {
+      if (move === "U") row--
+      else if (move === "D") row++
+      else if (move === "L") col--
+      else if (move === "R") col++
+      else continue
+
+      // Check bounds
+      if (row < 0 || row >= laserGrid.size || col < 0 || col >= laserGrid.size) {
+        addLog(`Agent ${currentUser}: Out of bounds at (${row},${col})`)
+        alert("INVALID PATH: Out of bounds!")
+        return
+      }
+
+      const key = `${row},${col}`
+
+      // Check laser hit
+      if (laserGrid.lasers.has(key)) {
+        hitLaser = true
+        setRevealedLasers((prev) => new Set([...prev, key]))
+        addLog(`Agent ${currentUser}: Hit laser at (${row},${col})`)
+        break
+      }
+
+      visited.add(key)
+    }
+
+    // Check if reached goal
+    if (!hitLaser && row === laserGrid.size - 1 && col === laserGrid.size - 1) {
+      addLog(`Agent ${currentUser}: Successfully navigated laser grid. Mission complete.`)
       updatePlayerStatus("Escaped")
       setMissionComplete(true)
-      alert("ACCESS GRANTED — You have extracted, decoded, and escaped. Mission complete!")
-    } else {
-      decrementR3Attempts()
-      addLog(`Agent ${currentUser}: Wrong cryptarithm attempt ${answer}. Attempts left ${round3Attempts - 1}`)
-
-      if (round3Attempts - 1 <= 0) {
-        updatePlayerStatus("Failed")
-        alert("MISSION FAILED — All attempts exhausted.")
-      } else {
-        alert(`Incorrect. ${round3Attempts - 1} attempts remaining.`)
-      }
+      alert("ACCESS GRANTED — You have successfully escaped!")
+      return
     }
-    setAnswer("")
+
+    // Failed attempt
+    decrementR3Attempts()
+    addLog(`Agent ${currentUser}: Failed laser navigation. Attempts left: ${round3Attempts - 1}`)
+
+    if (round3Attempts - 1 <= 0) {
+      updatePlayerStatus("Failed")
+      alert("MISSION FAILED — All attempts exhausted.")
+    } else {
+      alert(`${hitLaser ? "HIT LASER!" : "DIDN'T REACH GOAL"} ${round3Attempts - 1} attempts remaining.`)
+    }
+
+    setCommands("")
+    setCurrentPos({ row: 0, col: 0 })
+    setVisitedCells(new Set(["0,0"]))
   }
 
   const handleHint = () => {
-    const mapping = round3Crypto.solutions[0]?.mapping
-    if (!mapping) return
+    if (!laserGrid.solution || laserGrid.solution.length === 0) return
 
-    const [letter, digit] = Object.entries(mapping)[0]
+    // Reveal 2 safe coordinates from the solution path
+    let row = 0
+    let col = 0
+    const safeSpots: string[] = []
+
+    for (const move of laserGrid.solution) {
+      if (move === "U") row--
+      else if (move === "D") row++
+      else if (move === "L") col--
+      else if (move === "R") col++
+
+      safeSpots.push(`(${row},${col})`)
+
+      if (safeSpots.length >= 2) break
+    }
+
     consumeHint()
     setHintUsed(true)
-    addLog(`Agent ${currentUser}: Used Round-3 hint revealing ${letter}=${digit}.`)
-    alert(`Hint: ${letter} = ${digit}`)
+    addLog(`Agent ${currentUser}: Used Round-3 hint revealing safe coordinates.`)
+    alert(`Hint: Safe path includes ${safeSpots.join(" → ")}`)
   }
-
-  if (!round3Crypto) return null
 
   if (missionComplete) {
     return (
@@ -98,40 +168,61 @@ export function Round3() {
   return (
     <div className="container mx-auto space-y-6 px-6 py-8">
       <div>
-        <h2 className="font-mono text-2xl font-bold text-primary terminal-glow">ROUND 3: CRYPTARITHM LOCK</h2>
-        <p className="text-sm text-muted-foreground">Solve the cryptographic puzzle to escape</p>
+        <h2 className="font-mono text-2xl font-bold text-primary terminal-glow">ROUND 3: LASER GRID NAVIGATION</h2>
+        <p className="text-sm text-muted-foreground">Navigate from top-left to bottom-right avoiding lasers</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-primary/30 bg-card/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="font-mono text-lg">CRYPTOGRAPHIC LOCK</CardTitle>
-            <CardDescription>Each letter represents a unique digit (0-9)</CardDescription>
+            <CardTitle className="font-mono text-lg">LASER GRID</CardTitle>
+            <CardDescription>Red = Laser, Green = Start, Blue = Goal</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-md border border-border bg-background/50 p-8 text-center">
-              <p className="font-mono text-3xl font-bold text-primary">{round3Crypto.display}</p>
-            </div>
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${laserGrid.size}, 1fr)` }}>
+              {Array.from({ length: laserGrid.size }, (_, row) =>
+                Array.from({ length: laserGrid.size }, (_, col) => {
+                  const key = `${row},${col}`
+                  const isStart = row === 0 && col === 0
+                  const isGoal = row === laserGrid.size - 1 && col === laserGrid.size - 1
+                  const isLaser = revealedLasers.has(key)
+                  const isVisited = visitedCells.has(key)
 
-            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
-              Submit the numeric RESULT (right-hand side) to unlock the exit.
+                  let bgColor = "bg-background/50"
+                  if (isStart) bgColor = "bg-green-500/30 border-green-500"
+                  else if (isGoal) bgColor = "bg-blue-500/30 border-blue-500"
+                  else if (isLaser) bgColor = "bg-red-500/30 border-red-500"
+                  else if (isVisited) bgColor = "bg-primary/20"
+
+                  return (
+                    <div
+                      key={key}
+                      className={`aspect-square rounded border ${bgColor} flex items-center justify-center text-xs font-mono`}
+                    >
+                      {isStart && "S"}
+                      {isGoal && "G"}
+                      {isLaser && "✕"}
+                    </div>
+                  )
+                }),
+              )}
             </div>
 
             <div className="space-y-2">
               <Input
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
+                value={commands}
+                onChange={(e) => setCommands(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                placeholder="Enter numeric result..."
+                placeholder="Enter commands: U D L R"
                 className="font-mono text-lg"
                 disabled={round3Attempts <= 0}
               />
               <div className="flex gap-2">
                 <Button onClick={handleSubmit} className="flex-1" disabled={round3Attempts <= 0}>
-                  Submit Answer
+                  Submit Path
                 </Button>
                 <Button onClick={handleHint} disabled={hintUsed || hintsUsed >= MAX_HINTS} variant="outline">
-                  Round-3 Hint
+                  Hint
                 </Button>
               </div>
             </div>
@@ -144,26 +235,30 @@ export function Round3() {
 
         <Card className="border-primary/30 bg-card/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="font-mono text-lg">Solving Strategy</CardTitle>
-            <CardDescription>Approach systematically</CardDescription>
+            <CardTitle className="font-mono text-lg">Navigation Guide</CardTitle>
+            <CardDescription>Movement commands</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3 text-sm">
               <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
-                <p className="mb-1 font-mono text-xs font-medium text-accent">STRATEGY 1:</p>
-                <p className="text-muted-foreground">Identify unique letters and their constraints</p>
+                <p className="mb-1 font-mono text-xs font-medium text-accent">U = UP</p>
+                <p className="text-muted-foreground">Move one cell upward</p>
               </div>
               <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
-                <p className="mb-1 font-mono text-xs font-medium text-accent">STRATEGY 2:</p>
-                <p className="text-muted-foreground">Leading digits cannot be zero</p>
+                <p className="mb-1 font-mono text-xs font-medium text-accent">D = DOWN</p>
+                <p className="text-muted-foreground">Move one cell downward</p>
               </div>
               <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
-                <p className="mb-1 font-mono text-xs font-medium text-accent">STRATEGY 3:</p>
-                <p className="text-muted-foreground">Work from right to left, considering carries</p>
+                <p className="mb-1 font-mono text-xs font-medium text-accent">L = LEFT</p>
+                <p className="text-muted-foreground">Move one cell to the left</p>
               </div>
               <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
-                <p className="mb-1 font-mono text-xs font-medium text-accent">STRATEGY 4:</p>
-                <p className="text-muted-foreground">Use elimination to narrow down possibilities</p>
+                <p className="mb-1 font-mono text-xs font-medium text-accent">R = RIGHT</p>
+                <p className="text-muted-foreground">Move one cell to the right</p>
+              </div>
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+                <p className="font-mono text-xs font-medium">Example: DDRR</p>
+                <p className="text-muted-foreground">Moves down twice, then right twice</p>
               </div>
             </div>
           </CardContent>

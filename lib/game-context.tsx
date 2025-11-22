@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
-import { MISSION_TIME, generateCrypto, type CryptoData } from "./game-data"
+import { MISSION_TIME, type CryptoData } from "./game-data"
 
 export interface PlayerData {
   round: number
@@ -16,6 +16,12 @@ interface GameLog {
   message: string
 }
 
+interface LaserGrid {
+  size: number
+  lasers: Set<string>
+  solution: string[]
+}
+
 interface GameContextType {
   currentUser: string | null
   isHost: boolean
@@ -25,6 +31,7 @@ interface GameContextType {
   numbersCollected: string[]
   round2Puzzle: any
   round3Crypto: CryptoData | null
+  laserGrid: LaserGrid | null
   round3Attempts: number
   missionTimeLeft: number
   timerRunning: boolean
@@ -55,6 +62,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [numbersCollected, setNumbersCollected] = useState<string[]>([])
   const [round2Puzzle, setRound2PuzzleState] = useState<any>(null)
   const [round3Crypto, setRound3Crypto] = useState<CryptoData | null>(null)
+  const [laserGrid, setLaserGrid] = useState<LaserGrid | null>(null)
   const [round3Attempts, setRound3Attempts] = useState(3)
   const [missionTimeLeft, setMissionTimeLeft] = useState(MISSION_TIME)
   const [timerRunning, setTimerRunning] = useState(false)
@@ -90,12 +98,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
             },
           }))
 
-          // Reset session for player
+          setTimerRunning(true)
+
           setHintsUsed(0)
           setRound1Index(0)
           setNumbersCollected([])
           setRound2PuzzleState(null)
           setRound3Crypto(null)
+          setLaserGrid(null)
           setRound3Attempts(3)
         }
 
@@ -117,6 +127,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setNumbersCollected([])
     setRound2PuzzleState(null)
     setRound3Crypto(null)
+    setLaserGrid(null)
     setRound3Attempts(3)
   }, [currentUser, addLog])
 
@@ -164,8 +175,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   )
 
   const initRound3 = useCallback(() => {
-    const crypto = generateCrypto()
-    setRound3Crypto(crypto)
+    const grid = generateLaserGrid()
+    setLaserGrid(grid)
     setRound3Attempts(3)
     if (currentUser && currentUser !== "host") {
       setPlayers((prev) => ({
@@ -195,6 +206,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
           ...prev,
           [currentUser]: { ...prev[currentUser], status },
         }))
+        if (status === "Escaped" || status === "Failed") {
+          setTimerRunning(false)
+        }
       }
     },
     [currentUser],
@@ -225,7 +239,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [currentUser],
   )
 
-  // Timer effect
   useEffect(() => {
     if (!timerRunning) return
 
@@ -252,6 +265,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     numbersCollected,
     round2Puzzle,
     round3Crypto,
+    laserGrid,
     round3Attempts,
     missionTimeLeft,
     timerRunning,
@@ -281,4 +295,65 @@ export function useGame() {
     throw new Error("useGame must be used within a GameProvider")
   }
   return context
+}
+
+function generateLaserGrid(): LaserGrid {
+  const size = 5
+  const lasers = new Set<string>()
+
+  const numLasers = Math.floor(Math.random() * 5) + 8
+  while (lasers.size < numLasers) {
+    const row = Math.floor(Math.random() * size)
+    const col = Math.floor(Math.random() * size)
+    const key = `${row},${col}`
+
+    if ((row === 0 && col === 0) || (row === size - 1 && col === size - 1)) {
+      continue
+    }
+
+    lasers.add(key)
+  }
+
+  const solution = findPath(size, lasers)
+
+  return { size, lasers, solution }
+}
+
+function findPath(size: number, lasers: Set<string>): string[] {
+  const queue: Array<{ row: number; col: number; path: string[] }> = [{ row: 0, col: 0, path: [] }]
+  const visited = new Set<string>(["0,0"])
+
+  const directions = [
+    { dr: -1, dc: 0, move: "U" },
+    { dr: 1, dc: 0, move: "D" },
+    { dr: 0, dc: -1, move: "L" },
+    { dr: 0, dc: 1, move: "R" },
+  ]
+
+  while (queue.length > 0) {
+    const { row, col, path } = queue.shift()!
+
+    if (row === size - 1 && col === size - 1) {
+      return path
+    }
+
+    for (const { dr, dc, move } of directions) {
+      const newRow = row + dr
+      const newCol = col + dc
+      const key = `${newRow},${newCol}`
+
+      if (newRow < 0 || newRow >= size || newCol < 0 || newCol >= size) {
+        continue
+      }
+
+      if (visited.has(key) || lasers.has(key)) {
+        continue
+      }
+
+      visited.add(key)
+      queue.push({ row: newRow, col: newCol, path: [...path, move] })
+    }
+  }
+
+  return []
 }

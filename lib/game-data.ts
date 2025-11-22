@@ -29,20 +29,14 @@ export const USERS: Record<string, string> = {
 
 export const MAX_HINTS = 2
 export const HINT_PENALTY = 5
-export const MISSION_TIME = 20 * 60 // 20 minutes in seconds
+export const MISSION_TIME = 25 * 60 // 25 minutes in seconds
 
 export const ROUND1_QUESTIONS: Round1Question[] = [
   {
     question: "I speak without a mouth and hear without ears. What am I?",
     answer: "echo",
-    reward: "4",
+    reward: "6",
     hint: "Think of places that repeat sound.",
-  },
-  {
-    question: "I have keys but no locks. I have space but no rooms. What am I?",
-    answer: "keyboard",
-    reward: "9",
-    hint: "You use it to type.",
   },
   {
     question: "Pattern: 2, 4, 8, 16, ?",
@@ -51,16 +45,22 @@ export const ROUND1_QUESTIONS: Round1Question[] = [
     hint: "Each term doubles.",
   },
   {
-    question: 'Fix: prnt("Hello Agent") — what is the correct function name?',
-    answer: "print",
-    reward: "7",
-    hint: "Standard Python print() function.",
+    question: "How do you define a function in Python? (single keyword)",
+    answer: "def",
+    reward: "8",
+    hint: "Standard Python def keyword.",
   },
   {
-    question: "Which operator checks equality in Python? (example: x __ 10)",
-    answer: "==",
-    reward: "1",
-    hint: "Use the equality operator.",
+    question: "I have branches but no fruit, trunk or leaves. What am I?",
+    answer: "bank",
+    reward: "5",
+    hint: "Financial institution.",
+  },
+  {
+    question: "Operator for not equal in Python?",
+    answer: "!=",
+    reward: "4",
+    hint: "Use the not equal operator.",
   },
 ]
 
