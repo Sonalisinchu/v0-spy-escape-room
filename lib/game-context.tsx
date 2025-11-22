@@ -298,23 +298,27 @@ export function useGame() {
 }
 
 function generateLaserGrid(): LaserGrid {
-  const size = 5
+  const size = 4
   const lasers = new Set<string>()
 
-  const numLasers = Math.floor(Math.random() * 5) + 8
-  while (lasers.size < numLasers) {
-    const row = Math.floor(Math.random() * size)
-    const col = Math.floor(Math.random() * size)
-    const key = `${row},${col}`
+  // Fixed grid configuration from Python reference
+  // 0 = safe, 1 = laser
+  const gridLayout = [
+    [0, 0, 0, 1],
+    [1, 1, 0, 1],
+    [1, 1, 0, 0],
+    [1, 1, 1, 0],
+  ]
 
-    if ((row === 0 && col === 0) || (row === size - 1 && col === size - 1)) {
-      continue
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (gridLayout[r][c] === 1) {
+        lasers.add(`${r},${c}`)
+      }
     }
-
-    lasers.add(key)
   }
 
-  const solution = findPath(size, lasers)
+  const solution = ["R", "R", "D", "D", "R", "D"]
 
   return { size, lasers, solution }
 }
