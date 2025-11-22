@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useGame } from "@/lib/game-context"
 import { MAX_HINTS } from "@/lib/game-data"
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,39 @@ export function Round3() {
   const [hintUsed, setHintUsed] = useState(false)
   const [missionComplete, setMissionComplete] = useState(false)
   const [cellStates, setCellStates] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!laserGrid) return
+
+    // Collect all laser positions (excluding start and goal)
+    const laserPositions: [number, number][] = []
+    for (let r = 0; r < laserGrid.size; r++) {
+      for (let c = 0; c < laserGrid.size; c++) {
+        if (laserGrid.grid[r][c] === 1) {
+          // Exclude start and goal positions
+          if (!(r === 0 && c === 0) && !(r === laserGrid.size - 1 && c === laserGrid.size - 1)) {
+            laserPositions.push([r, c])
+          }
+        }
+      }
+    }
+
+    // Randomly select 4-6 laser positions to reveal
+    const numToReveal = Math.min(Math.floor(laserPositions.length * 0.4), 6)
+    const shuffled = [...laserPositions].sort(() => Math.random() - 0.5)
+    const revealed = shuffled.slice(0, numToReveal)
+
+    // Initialize cell states with start, goal, and some revealed lasers
+    const initialStates: Record<string, string> = {}
+    initialStates["0,0"] = "start"
+    initialStates[`${laserGrid.size - 1},${laserGrid.size - 1}`] = "goal"
+
+    revealed.forEach(([r, c]) => {
+      initialStates[`${r},${c}`] = "laser"
+    })
+
+    setCellStates(initialStates)
+  }, [laserGrid])
 
   const handleHint = () => {
     if (!laserGrid || hintUsed) return
