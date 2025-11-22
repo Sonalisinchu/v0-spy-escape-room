@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
-import { MISSION_TIME, generateLaserGrid, type LaserGrid } from "./game-data"
+import { MISSION_TIME, generateCrypto, type CryptoData } from "./game-data"
 
 export interface PlayerData {
   round: number
@@ -24,7 +24,7 @@ interface GameContextType {
   round1Index: number
   numbersCollected: string[]
   round2Puzzle: any
-  laserGrid: LaserGrid | null
+  round3Crypto: CryptoData | null
   round3Attempts: number
   missionTimeLeft: number
   timerRunning: boolean
@@ -54,7 +54,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [round1Index, setRound1Index] = useState(0)
   const [numbersCollected, setNumbersCollected] = useState<string[]>([])
   const [round2Puzzle, setRound2PuzzleState] = useState<any>(null)
-  const [laserGrid, setLaserGrid] = useState<LaserGrid | null>(null)
+  const [round3Crypto, setRound3Crypto] = useState<CryptoData | null>(null)
   const [round3Attempts, setRound3Attempts] = useState(3)
   const [missionTimeLeft, setMissionTimeLeft] = useState(MISSION_TIME)
   const [timerRunning, setTimerRunning] = useState(false)
@@ -95,10 +95,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
           setRound1Index(0)
           setNumbersCollected([])
           setRound2PuzzleState(null)
-          setLaserGrid(null)
+          setRound3Crypto(null)
           setRound3Attempts(3)
-
-          startTimer()
         }
 
         addLog(`Agent ${username} connected to Mission Nightfall.`)
@@ -118,7 +116,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setRound1Index(0)
     setNumbersCollected([])
     setRound2PuzzleState(null)
-    setLaserGrid(null)
+    setRound3Crypto(null)
     setRound3Attempts(3)
   }, [currentUser, addLog])
 
@@ -166,8 +164,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   )
 
   const initRound3 = useCallback(() => {
-    const grid = generateLaserGrid(5, 0.28)
-    setLaserGrid(grid)
+    const crypto = generateCrypto()
+    setRound3Crypto(crypto)
     setRound3Attempts(3)
     if (currentUser && currentUser !== "host") {
       setPlayers((prev) => ({
@@ -253,7 +251,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     round1Index,
     numbersCollected,
     round2Puzzle,
-    laserGrid,
+    round3Crypto,
     round3Attempts,
     missionTimeLeft,
     timerRunning,

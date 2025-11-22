@@ -10,7 +10,7 @@ import { Round2 } from "@/components/round2"
 import { Round3 } from "@/components/round3"
 
 export default function Home() {
-  const { currentUser, isHost, round2Puzzle, laserGrid } = useGame()
+  const { currentUser, isHost, round2Puzzle, round3Crypto } = useGame()
 
   return (
     <div className="mission-grid-bg flex min-h-screen flex-col">
@@ -21,7 +21,7 @@ export default function Home() {
           <LoginScreen />
         ) : isHost ? (
           <HostDashboard />
-        ) : laserGrid ? (
+        ) : round3Crypto ? (
           <Round3 />
         ) : round2Puzzle ? (
           <Round2 />
