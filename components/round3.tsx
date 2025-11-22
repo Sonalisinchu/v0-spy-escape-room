@@ -185,7 +185,7 @@ export function Round3() {
                   const key = `${row},${col}`
                   const isStart = row === 0 && col === 0
                   const isGoal = row === laserGrid.size - 1 && col === laserGrid.size - 1
-                  const isLaser = revealedLasers.has(key) && !isStart && !isGoal
+                  const isLaser = revealedLasers.has(key)
                   const isVisited = visitedCells.has(key)
 
                   let bgColor = "bg-background/50"
@@ -200,8 +200,8 @@ export function Round3() {
                       className={`aspect-square rounded border ${bgColor} flex items-center justify-center text-xs font-mono`}
                     >
                       {isStart && "S"}
-                      {isGoal && !isStart && "G"}
-                      {isLaser && !isStart && !isGoal && "✕"}
+                      {isGoal && "G"}
+                      {isLaser && "✕"}
                     </div>
                   )
                 }),
