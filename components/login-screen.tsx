@@ -127,7 +127,7 @@ export function LoginScreen() {
                   <p className="mb-1 font-mono font-medium">Example credentials:</p>
                   <p>agent007 / bond</p>
                   <p>agentX / shadow</p>
-                  <p>host / admin (for monitoring)</p>
+                  <p>{""}</p>
                 </div>
               </form>
             </CardContent>
