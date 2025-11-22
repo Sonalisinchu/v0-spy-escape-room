@@ -28,16 +28,7 @@ export function Round3() {
 
   useEffect(() => {
     if (laserGrid && revealedLasers.size === 0) {
-      const lasersArray = Array.from(laserGrid.lasers)
-      const numToReveal = Math.min(6, Math.floor(lasersArray.length * 0.4))
-      const revealed = new Set<string>()
-
-      for (let i = 0; i < numToReveal; i++) {
-        const randomIndex = Math.floor(Math.random() * lasersArray.length)
-        revealed.add(lasersArray[randomIndex])
-      }
-
-      setRevealedLasers(revealed)
+      setRevealedLasers(new Set())
     }
   }, [laserGrid])
 
@@ -108,26 +99,10 @@ export function Round3() {
   const handleHint = () => {
     if (!laserGrid.solution || laserGrid.solution.length === 0) return
 
-    // Reveal 2 safe coordinates from the solution path
-    let row = 0
-    let col = 0
-    const safeSpots: string[] = []
-
-    for (const move of laserGrid.solution) {
-      if (move === "U") row--
-      else if (move === "D") row++
-      else if (move === "L") col--
-      else if (move === "R") col++
-
-      safeSpots.push(`(${row},${col})`)
-
-      if (safeSpots.length >= 2) break
-    }
-
     consumeHint()
     setHintUsed(true)
-    addLog(`Agent ${currentUser}: Used Round-3 hint revealing safe coordinates.`)
-    alert(`Hint: Safe path includes ${safeSpots.join(" → ")}`)
+    addLog(`Agent ${currentUser}: Used Round-3 hint.`)
+    alert("Hint:\n- The safe path starts with RR (Right, Right)\n- Never go Left or Up\n- Stay within the 4x4 grid")
   }
 
   if (missionComplete) {
