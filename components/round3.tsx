@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useGame } from "@/lib/game-context"
 import { MAX_HINTS } from "@/lib/game-data"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,12 @@ export function Round3() {
   const [revealedLasers, setRevealedLasers] = useState<Set<string>>(new Set())
   const [hintUsed, setHintUsed] = useState(false)
   const [missionComplete, setMissionComplete] = useState(false)
+
+  useEffect(() => {
+    if (laserGrid && revealedLasers.size === 0) {
+      setRevealedLasers(new Set())
+    }
+  }, [laserGrid])
 
   if (!laserGrid) return null
 
@@ -91,10 +97,12 @@ export function Round3() {
   }
 
   const handleHint = () => {
+    if (!laserGrid.solution || laserGrid.solution.length === 0) return
+
     consumeHint()
     setHintUsed(true)
     addLog(`Agent ${currentUser}: Used Round-3 hint.`)
-    alert("Hint:\n- The safe path starts with RR (Right, Right).\n- Never go Left or Up.\n- Stay within the 4x4 grid.")
+    alert("Hint:\n- The safe path starts with RR (Right, Right)\n- Never go Left or Up\n- Stay within the 4x4 grid")
   }
 
   if (missionComplete) {
@@ -136,9 +144,7 @@ export function Round3() {
     <div className="container mx-auto space-y-6 px-6 py-8">
       <div>
         <h2 className="font-mono text-2xl font-bold text-primary terminal-glow">ROUND 3: LASER GRID NAVIGATION</h2>
-        <p className="text-sm text-muted-foreground">
-          Grid size: 4 x 4. Start: (0,0). Goal: (3,3). Enter path (e.g. RRDD).
-        </p>
+        <p className="text-sm text-muted-foreground">Navigate from top-left to bottom-right avoiding lasers</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

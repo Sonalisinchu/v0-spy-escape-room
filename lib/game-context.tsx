@@ -301,8 +301,7 @@ function generateLaserGrid(): LaserGrid {
   const size = 4
   const lasers = new Set<string>()
 
-  // Fixed grid configuration from Python reference
-  // 0 = safe, 1 = laser
+  // Fixed grid layout: 0 = safe, 1 = laser
   const gridLayout = [
     [0, 0, 0, 1],
     [1, 1, 0, 1],
@@ -321,43 +320,4 @@ function generateLaserGrid(): LaserGrid {
   const solution = ["R", "R", "D", "D", "R", "D"]
 
   return { size, lasers, solution }
-}
-
-function findPath(size: number, lasers: Set<string>): string[] {
-  const queue: Array<{ row: number; col: number; path: string[] }> = [{ row: 0, col: 0, path: [] }]
-  const visited = new Set<string>(["0,0"])
-
-  const directions = [
-    { dr: -1, dc: 0, move: "U" },
-    { dr: 1, dc: 0, move: "D" },
-    { dr: 0, dc: -1, move: "L" },
-    { dr: 0, dc: 1, move: "R" },
-  ]
-
-  while (queue.length > 0) {
-    const { row, col, path } = queue.shift()!
-
-    if (row === size - 1 && col === size - 1) {
-      return path
-    }
-
-    for (const { dr, dc, move } of directions) {
-      const newRow = row + dr
-      const newCol = col + dc
-      const key = `${newRow},${newCol}`
-
-      if (newRow < 0 || newRow >= size || newCol < 0 || newCol >= size) {
-        continue
-      }
-
-      if (visited.has(key) || lasers.has(key)) {
-        continue
-      }
-
-      visited.add(key)
-      queue.push({ row: newRow, col: newCol, path: [...path, move] })
-    }
-  }
-
-  return []
 }
