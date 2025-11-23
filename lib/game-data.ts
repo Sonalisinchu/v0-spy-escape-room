@@ -73,7 +73,7 @@ for i in range(n):
     for j in range(i+1):
         total += (i*j) + 1
 print(total)`,
-    answer: "21",
+    answer: "35",
     hint: "Inner loop runs 1,2,3,4 times.",
   },
   {
@@ -86,7 +86,7 @@ for k in range(4):
     x = x >> 1
     y = y >> 1
 print(res)`,
-    answer: "20",
+    answer: "12",
     hint: "AND bits and shift left by k each iteration.",
   },
   {
@@ -98,7 +98,7 @@ for a in arr:
     val *= a
     s += val
 print(s)`,
-    answer: "254",
+    answer: "248",
     hint: "Running products are summed.",
   },
   {
