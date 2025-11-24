@@ -17,6 +17,7 @@ export function Round3() {
     decrementR3Attempts,
     updatePlayerStatus,
     currentUser,
+    resetToRound1,
   } = useGame()
 
   const [commands, setCommands] = useState("")
@@ -85,8 +86,8 @@ export function Round3() {
     addLog(`Agent ${currentUser}: Failed laser navigation. Attempts left: ${round3Attempts - 1}`)
 
     if (round3Attempts - 1 <= 0) {
-      updatePlayerStatus("Failed")
-      alert("MISSION FAILED — All attempts exhausted.")
+      alert("MISSION FAILED — All attempts exhausted. Restarting from Round 1. Timer continues!")
+      resetToRound1()
     } else {
       alert(`${hitLaser ? "HIT LASER!" : "DIDN'T REACH GOAL"} ${round3Attempts - 1} attempts remaining.`)
     }

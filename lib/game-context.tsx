@@ -50,6 +50,7 @@ interface GameContextType {
   stopTimer: () => void
   resetTimer: () => void
   updatePlayerData: (updates: Partial<PlayerData>) => void
+  resetToRound1: () => void
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined)
@@ -239,6 +240,29 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [currentUser],
   )
 
+  const resetToRound1 = useCallback(() => {
+    setHintsUsed(0)
+    setRound1Index(0)
+    setNumbersCollected([])
+    setRound2PuzzleState(null)
+    setLaserGrid(null)
+    setRound3Attempts(3)
+
+    if (currentUser && currentUser !== "host") {
+      setPlayers((prev) => ({
+        ...prev,
+        [currentUser]: {
+          round: 1,
+          numbers: [],
+          hints: 0,
+          r3_attempts: 3,
+          status: "Restarting from Round 1",
+        },
+      }))
+      addLog(`Agent ${currentUser}: Failed Round 3. Restarting from Round 1. Timer continues.`)
+    }
+  }, [currentUser, addLog])
+
   useEffect(() => {
     if (!timerRunning) return
 
@@ -284,6 +308,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     stopTimer,
     resetTimer,
     updatePlayerData,
+    resetToRound1,
   }
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>
