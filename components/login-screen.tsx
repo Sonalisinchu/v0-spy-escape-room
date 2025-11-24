@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function LoginScreen() {
-  const { login, startTimer, resetTimer, missionTimeLeft, timerRunning } = useGame()
+  const { login, startTimer, resetTimer, missionTimeLeft, timerRunning, agentCredentials } = useGame()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -123,11 +123,17 @@ export function LoginScreen() {
                   CONNECT TO MISSION
                 </Button>
 
-                <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-                  <p className="mb-1 font-mono font-medium">Example credentials:</p>
-                  <p>agent007 / bond</p>
-                  <p>agentX / shadow</p>
-                </div>
+                {agentCredentials.length > 0 && (
+                  <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+                    <p className="mb-1 font-mono font-medium">Registered agents:</p>
+                    {agentCredentials.slice(0, 3).map((agent) => (
+                      <p key={agent.username}>
+                        {agent.displayName} ({agent.username})
+                      </p>
+                    ))}
+                    {agentCredentials.length > 3 && <p>... and {agentCredentials.length - 3} more</p>}
+                  </div>
+                )}
               </form>
             </CardContent>
           </Card>

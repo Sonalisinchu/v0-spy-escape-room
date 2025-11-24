@@ -11,6 +11,12 @@ export interface PlayerData {
   status: string
 }
 
+export interface AgentCredential {
+  username: string
+  password: string
+  displayName: string
+}
+
 interface GameLog {
   timestamp: string
   message: string
@@ -26,6 +32,10 @@ interface GameContextType {
   currentUser: string | null
   isHost: boolean
   players: Record<string, PlayerData>
+  agentCredentials: AgentCredential[]
+  addAgentCredential: (username: string, password: string, displayName: string) => boolean
+  removeAgentCredential: (username: string) => void
+  clearAllAgents: () => void
   hintsUsed: number
   round1Index: number
   numbersCollected: string[]
@@ -58,6 +68,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined)
 export function GameProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<string | null>(null)
   const [players, setPlayers] = useState<Record<string, PlayerData>>({})
+  const [agentCredentials, setAgentCredentials] = useState<AgentCredential[]>([])
   const [hintsUsed, setHintsUsed] = useState(0)
   const [round1Index, setRound1Index] = useState(0)
   const [numbersCollected, setNumbersCollected] = useState<string[]>([])
@@ -76,46 +87,67 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setLogs((prev) => [...prev, { timestamp, message }])
   }, [])
 
+  const addAgentCredential = useCallback((username: string, password: string, displayName: string): boolean => {
+    if (!username || !password || !displayName) return false
+
+    setAgentCredentials((prev) => {
+      if (prev.some((agent) => agent.username === username)) {
+        return prev
+      }
+      return [...prev, { username, password, displayName }]
+    })
+    return true
+  }, [])
+
+  const removeAgentCredential = useCallback((username: string) => {
+    setAgentCredentials((prev) => prev.filter((agent) => agent.username !== username))
+  }, [])
+
+  const clearAllAgents = useCallback(() => {
+    setAgentCredentials([])
+  }, [])
+
   const login = useCallback(
     (username: string, password: string): boolean => {
-      const USERS: Record<string, string> = {
-        agent007: "bond",
-        agentX: "shadow",
-        host: "admin",
-      }
-
-      if (USERS[username] === password) {
+      if (username === "host" && password === "admin") {
         setCurrentUser(username)
-
-        if (username !== "host") {
-          setPlayers((prev) => ({
-            ...prev,
-            [username]: prev[username] || {
-              round: 1,
-              numbers: [],
-              hints: 0,
-              r3_attempts: 3,
-              status: "In Round 1",
-            },
-          }))
-
-          setTimerRunning(true)
-
-          setHintsUsed(0)
-          setRound1Index(0)
-          setNumbersCollected([])
-          setRound2PuzzleState(null)
-          setRound3Crypto(null)
-          setLaserGrid(null)
-          setRound3Attempts(3)
-        }
-
-        addLog(`Agent ${username} connected to Mission Nightfall.`)
+        addLog(`Host connected to Mission Control.`)
         return true
       }
+
+      const agent = agentCredentials.find((a) => a.username === username && a.password === password)
+
+      if (agent) {
+        setCurrentUser(username)
+
+        setPlayers((prev) => ({
+          ...prev,
+          [username]: prev[username] || {
+            round: 1,
+            numbers: [],
+            hints: 0,
+            r3_attempts: 3,
+            status: "In Round 1",
+          },
+        }))
+
+        setTimerRunning(true)
+
+        setHintsUsed(0)
+        setRound1Index(0)
+        setNumbersCollected([])
+        setRound2PuzzleState(null)
+        setRound3Crypto(null)
+        setLaserGrid(null)
+        setRound3Attempts(3)
+
+        addLog(`Agent ${agent.displayName} (${username}) connected to Mission Nightfall.`)
+        return true
+      }
+
       return false
     },
-    [addLog],
+    [addLog, agentCredentials],
   )
 
   const logout = useCallback(() => {
@@ -284,6 +316,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     currentUser,
     isHost,
     players,
+    agentCredentials,
+    addAgentCredential,
+    removeAgentCredential,
+    clearAllAgents,
     hintsUsed,
     round1Index,
     numbersCollected,
