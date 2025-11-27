@@ -8,9 +8,10 @@ import { HostDashboard } from "@/components/host-dashboard"
 import { Round1 } from "@/components/round1"
 import { Round2 } from "@/components/round2"
 import { Round3 } from "@/components/round3"
+import { CompletionScreen } from "@/components/completion-screen"
 
 export default function Home() {
-  const { currentUser, isHost, round2Puzzle, laserGrid } = useGame()
+  const { currentUser, isHost, round2Puzzle, laserGrid, missionComplete } = useGame()
 
   return (
     <div className="mission-grid-bg flex min-h-screen flex-col">
@@ -21,6 +22,8 @@ export default function Home() {
           <LoginScreen />
         ) : isHost ? (
           <HostDashboard />
+        ) : missionComplete ? (
+          <CompletionScreen />
         ) : laserGrid ? (
           <Round3 />
         ) : round2Puzzle ? (

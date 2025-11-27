@@ -61,6 +61,9 @@ interface GameContextType {
   resetTimer: () => void
   updatePlayerData: (updates: Partial<PlayerData>) => void
   resetToRound1: () => void
+  missionComplete: boolean
+  secretKey: string | null
+  setMissionComplete: (complete: boolean, key?: string) => void
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined)
@@ -79,6 +82,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [missionTimeLeft, setMissionTimeLeft] = useState(MISSION_TIME)
   const [timerRunning, setTimerRunning] = useState(false)
   const [logs, setLogs] = useState<GameLog[]>([])
+  const [missionComplete, setMissionCompleteState] = useState(false)
+  const [secretKey, setSecretKey] = useState<string | null>(null)
 
   const isHost = currentUser === "host"
 
@@ -141,7 +146,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         setLaserGrid(null)
         setRound3Attempts(3)
 
-        addLog(`Agent ${agent.displayName} (${username}) connected to Mission Nightfall.`)
+        addLog(`Agent ${agent.displayName} (${username}) connected to OPERATION: ESCAPE ROOM.`)
         return true
       }
 
@@ -162,6 +167,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setRound3Crypto(null)
     setLaserGrid(null)
     setRound3Attempts(3)
+    setMissionCompleteState(false)
+    setSecretKey(null)
   }, [currentUser, addLog])
 
   const consumeHint = useCallback(() => {
@@ -295,6 +302,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser, addLog])
 
+  const setMissionComplete = useCallback((complete: boolean, key?: string) => {
+    setMissionCompleteState(complete)
+    if (complete && key) {
+      setSecretKey(key)
+      setTimerRunning(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (!timerRunning) return
 
@@ -345,6 +360,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     resetTimer,
     updatePlayerData,
     resetToRound1,
+    missionComplete,
+    secretKey,
+    setMissionComplete,
   }
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>

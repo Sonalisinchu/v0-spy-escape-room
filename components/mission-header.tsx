@@ -16,7 +16,7 @@ export function MissionHeader() {
             <span className="font-mono text-lg font-bold text-primary terminal-glow">◈</span>
           </div>
           <div>
-            <h1 className="font-mono text-xl font-bold text-primary terminal-glow">OPERATION: NIGHTFALL</h1>
+            <h1 className="font-mono text-xl font-bold text-primary terminal-glow">OPERATION: ESCAPE ROOM</h1>
             <p className="text-xs text-muted-foreground">Classified Mission Protocol</p>
           </div>
         </div>

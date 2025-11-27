@@ -18,6 +18,7 @@ export function Round3() {
     updatePlayerStatus,
     currentUser,
     resetToRound1,
+    setMissionComplete,
   } = useGame()
 
   const [commands, setCommands] = useState("")
@@ -25,7 +26,7 @@ export function Round3() {
   const [visitedCells, setVisitedCells] = useState<Set<string>>(new Set(["0,0"]))
   const [revealedLasers, setRevealedLasers] = useState<Set<string>>(new Set())
   const [hintUsed, setHintUsed] = useState(false)
-  const [missionComplete, setMissionComplete] = useState(false)
+  const [missionComplete, setMissionCompleteLocal] = useState(false)
 
   useEffect(() => {
     if (laserGrid && revealedLasers.size === 0) {
@@ -34,6 +35,13 @@ export function Round3() {
   }, [laserGrid])
 
   if (!laserGrid) return null
+
+  const generateSecretKey = (): string => {
+    const timestamp = Date.now().toString(36).toUpperCase()
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase()
+    const agentPrefix = (currentUser || "AGENT").substring(0, 4).toUpperCase()
+    return `${agentPrefix}-${timestamp}-${random}`
+  }
 
   const handleSubmit = () => {
     if (!commands.trim() || round3Attempts <= 0) return
@@ -76,7 +84,11 @@ export function Round3() {
     if (!hitLaser && row === laserGrid.size - 1 && col === laserGrid.size - 1) {
       addLog(`Agent ${currentUser}: Successfully navigated laser grid. Mission complete.`)
       updatePlayerStatus("Escaped")
-      setMissionComplete(true)
+
+      const secretKey = generateSecretKey()
+      setMissionComplete(true, secretKey)
+      setMissionCompleteLocal(true)
+
       alert("ACCESS GRANTED — You have successfully escaped!")
       return
     }
