@@ -359,15 +359,16 @@ export function useGame() {
 }
 
 function generateLaserGrid(): LaserGrid {
-  const size = 4
+  const size = 5
   const lasers = new Set<string>()
 
-  // Fixed grid layout: 0 = safe, 1 = laser
+  // Fixed 5x5 grid layout: 0 = safe, 1 = laser
   const gridLayout = [
-    [0, 0, 0, 1],
-    [1, 1, 0, 1],
-    [1, 1, 0, 0],
-    [1, 1, 1, 0],
+    [0, 1, 0, 0, 0],
+    [0, 1, 0, 1, 0],
+    [0, 0, 0, 1, 0],
+    [1, 1, 0, 0, 0],
+    [0, 0, 0, 1, 0],
   ]
 
   for (let r = 0; r < size; r++) {
@@ -378,7 +379,7 @@ function generateLaserGrid(): LaserGrid {
     }
   }
 
-  const solution = ["R", "R", "D", "D", "R", "D"]
+  const solution = ["D", "D", "R", "R", "D", "R", "R", "D"]
 
   return { size, lasers, solution }
 }

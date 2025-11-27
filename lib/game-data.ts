@@ -33,85 +33,84 @@ export const MISSION_TIME = 25 * 60 // 25 minutes in seconds
 
 export const ROUND1_QUESTIONS: Round1Question[] = [
   {
-    question: "I speak without a mouth and hear without ears. What am I?",
-    answer: "echo",
-    reward: "6",
-    hint: "Think of places that repeat sound.",
+    question: "Riddle: I shrink smaller every time I take a bath. What am I?",
+    answer: "soap",
+    reward: "7",
+    hint: "Think of what gets smaller as you use it in water.",
   },
   {
-    question: "Pattern: 2, 4, 8, 16, ?",
-    answer: "32",
-    reward: "3",
-    hint: "Each term doubles.",
-  },
-  {
-    question: "How do you define a function in Python? (single keyword)",
-    answer: "def",
-    reward: "8",
-    hint: "Standard Python def keyword.",
-  },
-  {
-    question: "I have branches but no fruit, trunk or leaves. What am I?",
-    answer: "bank",
+    question: "Riddle: I can be written, I can be spoken, I can be exposed, but I can also be hidden. What am I?",
+    answer: "secret",
     reward: "5",
-    hint: "Financial institution.",
+    hint: "A thing spies love and hide.",
   },
   {
-    question: "Operator for not equal in Python?",
-    answer: "!=",
+    question: "Pattern: 4, 9, 19, 39, 79, ? — what comes next?",
+    answer: "159",
+    reward: "3",
+    hint: "Each term ≈ previous ×2 + 1.",
+  },
+  {
+    question: "Syntax: Fix the code `if x = 5:` — what is the correct operator to compare?",
+    answer: "==",
+    reward: "8",
+    hint: "Equality check uses two characters.",
+  },
+  {
+    question: 'Python output: What does this print? `print("Agent" * 2 + "7")`',
+    answer: "agentagent7",
     reward: "4",
-    hint: "Use the not equal operator.",
+    hint: "String repetition and concatenation.",
   },
 ]
 
 export const CODE_PUZZLES: CodePuzzle[] = [
   {
-    display: "Puzzle 1",
-    code: `n = 4
-total = 0
-for i in range(n):
-    for j in range(i+1):
-        total += (i*j) + 1
-print(total)`,
-    answer: "35",
-    hint: "Inner loop runs 1,2,3,4 times.",
-  },
-  {
-    display: "Puzzle 2 (bitwise)",
-    code: `x = 13
-y = 6
-res = 0
-for k in range(4):
-    res += (x & y) << k
-    x = x >> 1
-    y = y >> 1
-print(res)`,
-    answer: "12",
-    hint: "AND bits and shift left by k each iteration.",
-  },
-  {
-    display: "Puzzle 3 (cumulative)",
-    code: `arr = [2,3,5,7]
-val = 1
-s = 0
-for a in arr:
-    val *= a
-    s += val
+    display: "Puzzle A",
+    code: `s = 0
+for i in range(1, 6):
+    s += i * (i + 2)
 print(s)`,
-    answer: "248",
-    hint: "Running products are summed.",
+    answer: "85",
+    hint: "Compute i*(i+2) for i=1..5 then sum.",
   },
   {
-    display: "Puzzle 4",
-    code: `x = 0
-for i in range(1,7):
+    display: "Puzzle B (bitwise)",
+    code: `x = 27
+y = 14
+r = 0
+for k in range(3):
+    r += (x ^ y) << k
+    x >>= 1
+    y >>= 1
+print(r)`,
+    answer: "61",
+    hint: "Compute XOR each round and left-shift by k.",
+  },
+  {
+    display: "Puzzle C",
+    code: `arr = [1,3,2,4]
+s = 0
+for i in range(len(arr)):
     if i % 2 == 0:
-        x += i // 2
+        s += arr[i] * 3
+    else:
+        s += arr[i] * 2
+print(s)`,
+    answer: "23",
+    hint: "Even indices ×3, odd indices ×2; sum.",
+  },
+  {
+    display: "Puzzle D",
+    code: `x = 1
+for i in range(1, 6):
+    if i % 2 == 0:
+        x += i*i
     else:
         x += i
 print(x)`,
-    answer: "15",
-    hint: "Odds add i; evens add i//2.",
+    answer: "30",
+    hint: "Add i for odd i; add i^2 for even i; start x=1.",
   },
 ]
 
