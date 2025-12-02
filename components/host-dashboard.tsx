@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useGame } from "@/lib/game-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,6 +15,15 @@ interface LeaderboardEntry {
   time_remaining: number
   hints_used: number
   completed_at: string
+}
+
+interface ActiveSession {
+  agent_username: string
+  display_name: string
+  current_round: number
+  hints_used: number
+  status: string
+  started_at: string
 }
 
 export function HostDashboard() {
@@ -34,13 +43,9 @@ export function HostDashboard() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
 
-  useEffect(() => {
-    loadAgentsFromDb()
-    fetchLeaderboard()
-  }, [loadAgentsFromDb])
-
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     try {
       const res = await fetch("/api/leaderboard")
       if (res.ok) {
@@ -50,7 +55,32 @@ export function HostDashboard() {
     } catch (error) {
       console.error("Failed to fetch leaderboard:", error)
     }
-  }
+  }, [])
+
+  const fetchActiveSessions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sessions?active=true")
+      if (res.ok) {
+        const data = await res.json()
+        setActiveSessions(data.sessions || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch active sessions:", error)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAgentsFromDb()
+    fetchLeaderboard()
+    fetchActiveSessions()
+
+    const interval = setInterval(() => {
+      fetchLeaderboard()
+      fetchActiveSessions()
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [loadAgentsFromDb, fetchLeaderboard, fetchActiveSessions])
 
   const handleAddAgent = async () => {
     setError("")
@@ -93,6 +123,29 @@ export function HostDashboard() {
     return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
+  const allActivePlayers = [
+    ...Object.entries(players).map(([username, data]) => ({
+      username,
+      displayName: agentCredentials.find((a) => a.username === username)?.displayName || username,
+      round: data.round,
+      hints: data.hints,
+      r3_attempts: data.r3_attempts,
+      status: data.status,
+      source: "local" as const,
+    })),
+    ...activeSessions
+      .filter((s) => !players[s.agent_username])
+      .map((s) => ({
+        username: s.agent_username,
+        displayName: s.display_name || s.agent_username,
+        round: s.current_round,
+        hints: s.hints_used,
+        r3_attempts: 3,
+        status: s.status,
+        source: "db" as const,
+      })),
+  ]
+
   return (
     <div className="container mx-auto space-y-6 px-6 py-8">
       <div className="flex items-center justify-between">
@@ -105,6 +158,7 @@ export function HostDashboard() {
             onClick={() => {
               loadAgentsFromDb()
               fetchLeaderboard()
+              fetchActiveSessions()
             }}
             variant="outline"
             size="sm"
@@ -230,10 +284,10 @@ export function HostDashboard() {
       <Card className="border-primary/30 bg-card/80 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="font-mono">Active Agents</CardTitle>
-          <CardDescription>Real-time mission progress tracking</CardDescription>
+          <CardDescription>Real-time mission progress tracking (auto-refreshes every 5 seconds)</CardDescription>
         </CardHeader>
         <CardContent>
-          {Object.keys(players).length === 0 ? (
+          {allActivePlayers.length === 0 ? (
             <div className="rounded-md border border-border bg-background/50 p-8 text-center">
               <p className="text-sm text-muted-foreground">No agents currently active</p>
             </div>
@@ -244,33 +298,29 @@ export function HostDashboard() {
                   <TableRow>
                     <TableHead className="font-mono">Agent</TableHead>
                     <TableHead className="font-mono">Round</TableHead>
-                    <TableHead className="font-mono">Digits</TableHead>
-                    <TableHead className="font-mono">Hints</TableHead>
+                    <TableHead className="font-mono">Hints Used</TableHead>
                     <TableHead className="font-mono">R3 Attempts</TableHead>
                     <TableHead className="font-mono">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Object.entries(players).map(([agent, data]) => (
-                    <TableRow key={agent}>
-                      <TableCell className="font-mono font-medium">
-                        {agentCredentials.find((a) => a.username === agent)?.displayName || agent}
-                      </TableCell>
-                      <TableCell className="font-mono">{data.round}</TableCell>
-                      <TableCell className="font-mono">{data.numbers.join(",") || "-"}</TableCell>
-                      <TableCell className="font-mono">{data.hints}</TableCell>
-                      <TableCell className="font-mono">{data.r3_attempts}</TableCell>
+                  {allActivePlayers.map((player) => (
+                    <TableRow key={player.username}>
+                      <TableCell className="font-mono font-medium">{player.displayName}</TableCell>
+                      <TableCell className="font-mono">{player.round}</TableCell>
+                      <TableCell className="font-mono">{player.hints}</TableCell>
+                      <TableCell className="font-mono">{player.r3_attempts}</TableCell>
                       <TableCell>
                         <span
                           className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                            data.status === "Escaped"
+                            player.status === "Escaped"
                               ? "bg-accent/20 text-accent"
-                              : data.status === "Failed"
+                              : player.status === "Failed"
                                 ? "bg-destructive/20 text-destructive"
                                 : "bg-primary/20 text-primary"
                           }`}
                         >
-                          {data.status}
+                          {player.status}
                         </span>
                       </TableCell>
                     </TableRow>
@@ -329,22 +379,24 @@ export function HostDashboard() {
           <CardTitle className="font-mono">System Information</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="rounded-md border border-border bg-background/50 p-4">
-              <p className="text-sm text-muted-foreground">Total Agents</p>
-              <p className="font-mono text-2xl font-bold text-primary">{Object.keys(players).length}</p>
+              <p className="text-sm text-muted-foreground">Registered Agents</p>
+              <p className="font-mono text-2xl font-bold text-primary">{agentCredentials.length}</p>
+            </div>
+            <div className="rounded-md border border-border bg-background/50 p-4">
+              <p className="text-sm text-muted-foreground">Active Now</p>
+              <p className="font-mono text-2xl font-bold text-primary">{allActivePlayers.length}</p>
             </div>
             <div className="rounded-md border border-border bg-background/50 p-4">
               <p className="text-sm text-muted-foreground">Escaped</p>
               <p className="font-mono text-2xl font-bold text-accent">
-                {Object.values(players).filter((p) => p.status === "Escaped").length}
+                {allActivePlayers.filter((p) => p.status === "Escaped").length}
               </p>
             </div>
             <div className="rounded-md border border-border bg-background/50 p-4">
-              <p className="text-sm text-muted-foreground">Failed</p>
-              <p className="font-mono text-2xl font-bold text-destructive">
-                {Object.values(players).filter((p) => p.status === "Failed").length}
-              </p>
+              <p className="text-sm text-muted-foreground">Completed (All Time)</p>
+              <p className="font-mono text-2xl font-bold text-accent">{leaderboard.length}</p>
             </div>
           </div>
         </CardContent>

@@ -113,7 +113,7 @@ export function Round3() {
     setHintUsed(true)
     addLog(`Agent ${currentUser}: Used Round-3 hint.`)
     alert(
-      "Hint:\n- Start by going Down twice (DD)\n- Then Right twice (RR)\n- Continue: Down, Right, Right, Down\n- Full path: DDRRDRRD",
+      "Hint:\n- Start by moving DOWN\n- Avoid the second column at the top\n- Look for safe paths along the left side\n- The goal is at bottom-right (4,4)",
     )
   }
 

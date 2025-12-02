@@ -1,9 +1,29 @@
 import { sql } from "@/lib/db"
 import { NextResponse } from "next/server"
 
-// GET - Fetch all game sessions (for host dashboard)
-export async function GET() {
+// GET - Fetch game sessions (for host dashboard)
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const activeOnly = searchParams.get("active") === "true"
+
+    if (activeOnly) {
+      const sessions = await sql`
+        SELECT 
+          gs.agent_username,
+          ra.display_name,
+          gs.current_round,
+          gs.hints_used,
+          gs.status,
+          gs.started_at
+        FROM game_sessions gs
+        LEFT JOIN registered_agents ra ON gs.agent_username = ra.username
+        WHERE gs.status = 'in_progress'
+        ORDER BY gs.started_at DESC
+      `
+      return NextResponse.json({ sessions })
+    }
+
     const sessions = await sql`
       SELECT * FROM game_sessions 
       ORDER BY created_at DESC
@@ -12,19 +32,50 @@ export async function GET() {
     return NextResponse.json({ sessions })
   } catch (error) {
     console.error("Error fetching sessions:", error)
-    return NextResponse.json({ error: "Failed to fetch sessions" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch sessions", sessions: [] }, { status: 500 })
   }
 }
 
-// POST - Create a new game session (when agent starts game)
+// POST - Create or update a game session
 export async function POST(request: Request) {
   try {
-    const { agentName, displayName } = await request.json()
+    const body = await request.json()
 
+    if (body.agentUsername && body.secretKey) {
+      const { agentUsername, startTime, endTime, status, secretKey, hintsUsed, timeRemaining } = body
+
+      const result = await sql`
+        INSERT INTO game_sessions (
+          agent_username, 
+          started_at, 
+          completed_at, 
+          status, 
+          secret_key, 
+          hints_used, 
+          time_remaining,
+          current_round
+        )
+        VALUES (
+          ${agentUsername}, 
+          ${startTime}, 
+          ${endTime}, 
+          ${status}, 
+          ${secretKey}, 
+          ${hintsUsed}, 
+          ${timeRemaining},
+          3
+        )
+        RETURNING *
+      `
+      return NextResponse.json({ session: result[0] })
+    }
+
+    // Handle starting a new session
+    const { agentName, displayName } = body
     const result = await sql`
-      INSERT INTO game_sessions (agent_name, display_name, status)
-      VALUES (${agentName}, ${displayName}, 'in_progress')
-      RETURNING id, agent_name, display_name, start_time
+      INSERT INTO game_sessions (agent_username, status, current_round)
+      VALUES (${agentName}, 'in_progress', 1)
+      RETURNING *
     `
 
     return NextResponse.json({ session: result[0] })
@@ -37,19 +88,12 @@ export async function POST(request: Request) {
 // PATCH - Update game session (round completion, game end)
 export async function PATCH(request: Request) {
   try {
-    const { sessionId, updates } = await request.json()
+    const { agentUsername, updates } = await request.json()
 
     const setClauses = []
-    const values: any[] = []
 
-    if (updates.round1Completed !== undefined) {
-      setClauses.push("round1_completed = true")
-    }
-    if (updates.round2Completed !== undefined) {
-      setClauses.push("round2_completed = true")
-    }
-    if (updates.round3Completed !== undefined) {
-      setClauses.push("round3_completed = true")
+    if (updates.currentRound !== undefined) {
+      setClauses.push(`current_round = ${updates.currentRound}`)
     }
     if (updates.status) {
       setClauses.push(`status = '${updates.status}'`)
@@ -57,17 +101,14 @@ export async function PATCH(request: Request) {
     if (updates.secretKey) {
       setClauses.push(`secret_key = '${updates.secretKey}'`)
     }
-    if (updates.endTime) {
-      setClauses.push("end_time = NOW()")
+    if (updates.completedAt) {
+      setClauses.push(`completed_at = NOW()`)
     }
-    if (updates.totalTimeSeconds !== undefined) {
-      setClauses.push(`total_time_seconds = ${updates.totalTimeSeconds}`)
+    if (updates.timeRemaining !== undefined) {
+      setClauses.push(`time_remaining = ${updates.timeRemaining}`)
     }
     if (updates.hintsUsed !== undefined) {
       setClauses.push(`hints_used = ${updates.hintsUsed}`)
-    }
-    if (updates.attemptsUsed !== undefined) {
-      setClauses.push(`attempts_used = ${updates.attemptsUsed}`)
     }
 
     if (setClauses.length === 0) {
@@ -77,7 +118,7 @@ export async function PATCH(request: Request) {
     const result = await sql`
       UPDATE game_sessions 
       SET ${sql.unsafe(setClauses.join(", "))}
-      WHERE id = ${sessionId}
+      WHERE agent_username = ${agentUsername} AND status = 'in_progress'
       RETURNING *
     `
 
