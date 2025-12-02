@@ -199,7 +199,7 @@ export function Round3() {
                 value={commands}
                 onChange={(e) => setCommands(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                placeholder="Enter path: e.g., DDRRDRRD"
+                placeholder="Enter path using U, D, L, R"
                 className="font-mono text-lg"
                 disabled={round3Attempts <= 0}
               />

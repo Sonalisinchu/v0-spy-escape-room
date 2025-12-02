@@ -5,7 +5,7 @@ import { NextResponse } from "next/server"
 export async function GET() {
   try {
     const agents = await sql`
-      SELECT id, username, display_name, is_active, created_at 
+      SELECT id, username, password, display_name as "displayName", is_active, created_at 
       FROM registered_agents 
       WHERE is_active = true
       ORDER BY created_at DESC
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         password = ${password},
         display_name = ${displayName},
         is_active = true
-      RETURNING id, username, display_name
+      RETURNING id, username, display_name as "displayName"
     `
 
     return NextResponse.json({ agent: result[0] })
@@ -43,18 +43,48 @@ export async function POST(request: Request) {
   }
 }
 
-// DELETE - Remove an agent
+// DELETE - Remove an agent or clear all agents
 export async function DELETE(request: Request) {
   try {
-    const { username } = await request.json()
+    const url = new URL(request.url)
+    const clearAll = url.searchParams.get("all")
+    const username = url.searchParams.get("username")
 
-    await sql`
-      UPDATE registered_agents 
-      SET is_active = false 
-      WHERE username = ${username}
-    `
+    if (clearAll === "true") {
+      // Clear all agents
+      await sql`
+        UPDATE registered_agents 
+        SET is_active = false
+      `
+      return NextResponse.json({ success: true, message: "All agents cleared" })
+    }
 
-    return NextResponse.json({ success: true })
+    if (username) {
+      // Remove single agent by username from query param
+      await sql`
+        UPDATE registered_agents 
+        SET is_active = false 
+        WHERE username = ${username}
+      `
+      return NextResponse.json({ success: true })
+    }
+
+    // Try to get username from body for backwards compatibility
+    try {
+      const body = await request.json()
+      if (body.username) {
+        await sql`
+          UPDATE registered_agents 
+          SET is_active = false 
+          WHERE username = ${body.username}
+        `
+        return NextResponse.json({ success: true })
+      }
+    } catch {
+      // Body parsing failed, that's okay
+    }
+
+    return NextResponse.json({ error: "No username provided" }, { status: 400 })
   } catch (error) {
     console.error("Error deleting agent:", error)
     return NextResponse.json({ error: "Failed to delete agent" }, { status: 500 })

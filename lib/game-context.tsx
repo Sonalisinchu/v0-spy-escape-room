@@ -101,7 +101,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/agents")
       if (res.ok) {
         const data = await res.json()
-        setAgentCredentials(data.agents || [])
+        const agents = (data.agents || []).map((a: any) => ({
+          id: a.id,
+          username: a.username,
+          password: a.password,
+          displayName: a.displayName || a.display_name,
+        }))
+        setAgentCredentials(agents)
       }
     } catch (error) {
       console.error("Failed to load agents from database:", error)
@@ -149,11 +155,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const clearAllAgents = useCallback(async () => {
     try {
       await fetch("/api/agents?all=true", { method: "DELETE" })
-      setAgentCredentials([])
+      await loadAgentsFromDb()
     } catch (error) {
       console.error("Failed to clear agents:", error)
     }
-  }, [])
+  }, [loadAgentsFromDb])
 
   const saveSessionToDb = useCallback(
     async (generatedSecretKey: string) => {
