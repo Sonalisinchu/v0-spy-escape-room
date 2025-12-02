@@ -22,8 +22,6 @@ export interface CryptoData {
 }
 
 export const USERS: Record<string, string> = {
-  agent007: "bond",
-  agentX: "shadow",
   host: "admin",
 }
 
@@ -75,20 +73,7 @@ print(s)`,
     hint: "Compute i*(i+2) for i=1..5 then sum.",
   },
   {
-    display: "Puzzle B (bitwise)",
-    code: `x = 27
-y = 14
-r = 0
-for k in range(3):
-    r += (x ^ y) << k
-    x >>= 1
-    y >>= 1
-print(r)`,
-    answer: "61",
-    hint: "Compute XOR each round and left-shift by k.",
-  },
-  {
-    display: "Puzzle C",
+    display: "Puzzle B",
     code: `arr = [1,3,2,4]
 s = 0
 for i in range(len(arr)):
@@ -101,7 +86,7 @@ print(s)`,
     hint: "Even indices ×3, odd indices ×2; sum.",
   },
   {
-    display: "Puzzle D",
+    display: "Puzzle C",
     code: `x = 1
 for i in range(1, 6):
     if i % 2 == 0:
