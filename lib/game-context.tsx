@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
-import { MISSION_TIME, type CryptoData } from "./game-data"
+import { MISSION_TIME } from "./game-data"
 
 export interface PlayerData {
   round: number
@@ -12,6 +12,7 @@ export interface PlayerData {
 }
 
 export interface AgentCredential {
+  id?: number
   username: string
   password: string
   displayName: string
@@ -33,20 +34,21 @@ interface GameContextType {
   isHost: boolean
   players: Record<string, PlayerData>
   agentCredentials: AgentCredential[]
-  addAgentCredential: (username: string, password: string, displayName: string) => boolean
-  removeAgentCredential: (username: string) => void
-  clearAllAgents: () => void
+  addAgentCredential: (username: string, password: string, displayName: string) => Promise<boolean>
+  removeAgentCredential: (username: string) => Promise<void>
+  clearAllAgents: () => Promise<void>
+  loadAgentsFromDb: () => Promise<void>
   hintsUsed: number
   round1Index: number
   numbersCollected: string[]
   round2Puzzle: any
-  round3Crypto: CryptoData | null
+  round3Crypto: any
   laserGrid: LaserGrid | null
   round3Attempts: number
   missionTimeLeft: number
   timerRunning: boolean
   logs: GameLog[]
-  login: (username: string, password: string) => boolean
+  login: (username: string, password: string) => Promise<boolean>
   logout: () => void
   addLog: (message: string) => void
   consumeHint: () => void
@@ -64,6 +66,7 @@ interface GameContextType {
   missionComplete: boolean
   secretKey: string | null
   setMissionComplete: (complete: boolean, key?: string) => void
+  saveSessionToDb: (secretKey: string) => Promise<void>
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined)
@@ -76,7 +79,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [round1Index, setRound1Index] = useState(0)
   const [numbersCollected, setNumbersCollected] = useState<string[]>([])
   const [round2Puzzle, setRound2PuzzleState] = useState<any>(null)
-  const [round3Crypto, setRound3Crypto] = useState<CryptoData | null>(null)
+  const [round3Crypto, setRound3Crypto] = useState<any>(null)
   const [laserGrid, setLaserGrid] = useState<LaserGrid | null>(null)
   const [round3Attempts, setRound3Attempts] = useState(3)
   const [missionTimeLeft, setMissionTimeLeft] = useState(MISSION_TIME)
@@ -84,6 +87,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [logs, setLogs] = useState<GameLog[]>([])
   const [missionComplete, setMissionCompleteState] = useState(false)
   const [secretKey, setSecretKey] = useState<string | null>(null)
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
 
   const isHost = currentUser === "host"
 
@@ -92,67 +96,141 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setLogs((prev) => [...prev, { timestamp, message }])
   }, [])
 
-  const addAgentCredential = useCallback((username: string, password: string, displayName: string): boolean => {
-    if (!username || !password || !displayName) return false
-
-    setAgentCredentials((prev) => {
-      if (prev.some((agent) => agent.username === username)) {
-        return prev
+  const loadAgentsFromDb = useCallback(async () => {
+    try {
+      const res = await fetch("/api/agents")
+      if (res.ok) {
+        const data = await res.json()
+        setAgentCredentials(data.agents || [])
       }
-      return [...prev, { username, password, displayName }]
-    })
-    return true
+    } catch (error) {
+      console.error("Failed to load agents from database:", error)
+    }
   }, [])
 
-  const removeAgentCredential = useCallback((username: string) => {
-    setAgentCredentials((prev) => prev.filter((agent) => agent.username !== username))
+  const addAgentCredential = useCallback(
+    async (username: string, password: string, displayName: string): Promise<boolean> => {
+      if (!username || !password || !displayName) return false
+
+      try {
+        const res = await fetch("/api/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password, displayName }),
+        })
+
+        if (res.ok) {
+          await loadAgentsFromDb()
+          return true
+        }
+        return false
+      } catch (error) {
+        console.error("Failed to add agent:", error)
+        return false
+      }
+    },
+    [loadAgentsFromDb],
+  )
+
+  const removeAgentCredential = useCallback(
+    async (username: string) => {
+      try {
+        await fetch(`/api/agents?username=${encodeURIComponent(username)}`, {
+          method: "DELETE",
+        })
+        await loadAgentsFromDb()
+      } catch (error) {
+        console.error("Failed to remove agent:", error)
+      }
+    },
+    [loadAgentsFromDb],
+  )
+
+  const clearAllAgents = useCallback(async () => {
+    try {
+      await fetch("/api/agents?all=true", { method: "DELETE" })
+      setAgentCredentials([])
+    } catch (error) {
+      console.error("Failed to clear agents:", error)
+    }
   }, [])
 
-  const clearAllAgents = useCallback(() => {
-    setAgentCredentials([])
-  }, [])
+  const saveSessionToDb = useCallback(
+    async (generatedSecretKey: string) => {
+      if (!currentUser || !sessionStartTime) return
+
+      try {
+        await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agentUsername: currentUser,
+            startTime: sessionStartTime.toISOString(),
+            endTime: new Date().toISOString(),
+            status: "completed",
+            secretKey: generatedSecretKey,
+            hintsUsed,
+            timeRemaining: missionTimeLeft,
+          }),
+        })
+      } catch (error) {
+        console.error("Failed to save session:", error)
+      }
+    },
+    [currentUser, sessionStartTime, hintsUsed, missionTimeLeft],
+  )
 
   const login = useCallback(
-    (username: string, password: string): boolean => {
+    async (username: string, password: string): Promise<boolean> => {
       if (username === "host" && password === "admin") {
         setCurrentUser(username)
         addLog(`Host connected to Mission Control.`)
+        await loadAgentsFromDb()
         return true
       }
 
-      const agent = agentCredentials.find((a) => a.username === username && a.password === password)
+      try {
+        const res = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        })
 
-      if (agent) {
-        setCurrentUser(username)
+        if (res.ok) {
+          const data = await res.json()
+          setCurrentUser(username)
+          setSessionStartTime(new Date())
 
-        setPlayers((prev) => ({
-          ...prev,
-          [username]: prev[username] || {
-            round: 1,
-            numbers: [],
-            hints: 0,
-            r3_attempts: 3,
-            status: "In Round 1",
-          },
-        }))
+          setPlayers((prev) => ({
+            ...prev,
+            [username]: prev[username] || {
+              round: 1,
+              numbers: [],
+              hints: 0,
+              r3_attempts: 3,
+              status: "In Round 1",
+            },
+          }))
 
-        setTimerRunning(true)
+          setTimerRunning(true)
+          setHintsUsed(0)
+          setRound1Index(0)
+          setNumbersCollected([])
+          setRound2PuzzleState(null)
+          setRound3Crypto(null)
+          setLaserGrid(null)
+          setRound3Attempts(3)
 
-        setHintsUsed(0)
-        setRound1Index(0)
-        setNumbersCollected([])
-        setRound2PuzzleState(null)
-        setRound3Crypto(null)
-        setLaserGrid(null)
-        setRound3Attempts(3)
-
-        addLog(`Agent ${agent.displayName} (${username}) connected to OPERATION: ESCAPE ROOM.`)
-        return true
+          addLog(`Agent ${data.displayName || username} connected to OPERATION: ESCAPE ROOM.`)
+          return true
+        }
+        return false
+      } catch (error) {
+        console.error("Login error:", error)
+        return false
       }
-
-      return false
     },
-    [addLog, agentCredentials],
+    [addLog, loadAgentsFromDb],
   )
 
   const logout = useCallback(() => {
@@ -169,6 +247,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setRound3Attempts(3)
     setMissionCompleteState(false)
     setSecretKey(null)
+    setSessionStartTime(null)
   }, [currentUser, addLog])
 
   const consumeHint = useCallback(() => {
@@ -207,7 +286,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (currentUser && currentUser !== "host") {
         setPlayers((prev) => ({
           ...prev,
-          [currentUser]: { ...prev[currentUser], round: 2 },
+          [currentUser]: { ...prev[currentUser], round: 2, status: "In Round 2" },
         }))
       }
     },
@@ -221,7 +300,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (currentUser && currentUser !== "host") {
       setPlayers((prev) => ({
         ...prev,
-        [currentUser]: { ...prev[currentUser], round: 3, r3_attempts: 3 },
+        [currentUser]: { ...prev[currentUser], round: 3, r3_attempts: 3, status: "In Round 3" },
       }))
     }
   }, [currentUser])
@@ -335,6 +414,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     addAgentCredential,
     removeAgentCredential,
     clearAllAgents,
+    loadAgentsFromDb,
     hintsUsed,
     round1Index,
     numbersCollected,
@@ -363,6 +443,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     missionComplete,
     secretKey,
     setMissionComplete,
+    saveSessionToDb,
   }
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>
@@ -397,6 +478,7 @@ function generateLaserGrid(): LaserGrid {
     }
   }
 
+  // Solution path: D D R R D R R D
   const solution = ["D", "D", "R", "R", "D", "R", "R", "D"]
 
   return { size, lasers, solution }

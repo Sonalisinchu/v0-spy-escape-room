@@ -19,20 +19,20 @@ export function Round3() {
     currentUser,
     resetToRound1,
     setMissionComplete,
+    saveSessionToDb,
   } = useGame()
 
   const [commands, setCommands] = useState("")
-  const [currentPos, setCurrentPos] = useState({ row: 0, col: 0 })
   const [visitedCells, setVisitedCells] = useState<Set<string>>(new Set(["0,0"]))
   const [revealedLasers, setRevealedLasers] = useState<Set<string>>(new Set())
   const [hintUsed, setHintUsed] = useState(false)
-  const [missionComplete, setMissionCompleteLocal] = useState(false)
+  const [missionCompleteLocal, setMissionCompleteLocal] = useState(false)
 
   useEffect(() => {
     if (laserGrid && revealedLasers.size === 0) {
       setRevealedLasers(new Set())
     }
-  }, [laserGrid])
+  }, [laserGrid, revealedLasers.size])
 
   if (!laserGrid) return null
 
@@ -43,7 +43,7 @@ export function Round3() {
     return `${agentPrefix}-${timestamp}-${random}`
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!commands.trim() || round3Attempts <= 0) return
 
     const moves = commands.toUpperCase().split("")
@@ -52,7 +52,6 @@ export function Round3() {
     const visited = new Set<string>(["0,0"])
     let hitLaser = false
 
-    // Simulate the path
     for (const move of moves) {
       if (move === "U") row--
       else if (move === "D") row++
@@ -60,7 +59,6 @@ export function Round3() {
       else if (move === "R") col++
       else continue
 
-      // Check bounds
       if (row < 0 || row >= laserGrid.size || col < 0 || col >= laserGrid.size) {
         addLog(`Agent ${currentUser}: Out of bounds at (${row},${col})`)
         alert("INVALID PATH: Out of bounds!")
@@ -69,7 +67,6 @@ export function Round3() {
 
       const key = `${row},${col}`
 
-      // Check laser hit
       if (laserGrid.lasers.has(key)) {
         hitLaser = true
         setRevealedLasers((prev) => new Set([...prev, key]))
@@ -80,7 +77,6 @@ export function Round3() {
       visited.add(key)
     }
 
-    // Check if reached goal
     if (!hitLaser && row === laserGrid.size - 1 && col === laserGrid.size - 1) {
       addLog(`Agent ${currentUser}: Successfully navigated laser grid. Mission complete.`)
       updatePlayerStatus("Escaped")
@@ -89,11 +85,13 @@ export function Round3() {
       setMissionComplete(true, secretKey)
       setMissionCompleteLocal(true)
 
+      // Save to database
+      await saveSessionToDb(secretKey)
+
       alert("ACCESS GRANTED — You have successfully escaped!")
       return
     }
 
-    // Failed attempt
     decrementR3Attempts()
     addLog(`Agent ${currentUser}: Failed laser navigation. Attempts left: ${round3Attempts - 1}`)
 
@@ -105,20 +103,21 @@ export function Round3() {
     }
 
     setCommands("")
-    setCurrentPos({ row: 0, col: 0 })
     setVisitedCells(new Set(["0,0"]))
   }
 
   const handleHint = () => {
-    if (!laserGrid.solution || laserGrid.solution.length === 0) return
+    if (hintsUsed >= MAX_HINTS || hintUsed) return
 
     consumeHint()
     setHintUsed(true)
     addLog(`Agent ${currentUser}: Used Round-3 hint.`)
-    alert("Hint:\n- The safe path starts with RR (Right, Right)\n- Never go Left or Up\n- Stay within the 4x4 grid")
+    alert(
+      "Hint:\n- Start by going Down twice (DD)\n- Then Right twice (RR)\n- Continue: Down, Right, Right, Down\n- Full path: DDRRDRRD",
+    )
   }
 
-  if (missionComplete) {
+  if (missionCompleteLocal) {
     return (
       <div className="container mx-auto px-6 py-8">
         <Card className="mx-auto max-w-2xl border-accent/50 bg-accent/10 backdrop-blur-sm">
@@ -135,17 +134,6 @@ export function Round3() {
                   You have successfully extracted intel, decoded communications, and escaped.
                 </p>
               </div>
-              <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-4 text-sm">
-                <p>
-                  <span className="font-medium">Agent:</span> {currentUser}
-                </p>
-                <p>
-                  <span className="font-medium">Status:</span> Escaped
-                </p>
-                <p>
-                  <span className="font-medium">Hints Used:</span> {hintsUsed}/{MAX_HINTS}
-                </p>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -157,14 +145,16 @@ export function Round3() {
     <div className="container mx-auto space-y-6 px-6 py-8">
       <div>
         <h2 className="font-mono text-2xl font-bold text-primary terminal-glow">ROUND 3: LASER GRID NAVIGATION</h2>
-        <p className="text-sm text-muted-foreground">Navigate from top-left to bottom-right avoiding lasers</p>
+        <p className="text-sm text-muted-foreground">
+          Navigate from top-left (0,0) to bottom-right (4,4) avoiding lasers
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-primary/30 bg-card/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="font-mono text-lg">LASER GRID</CardTitle>
-            <CardDescription>Red = Laser, Green = Start, Blue = Goal</CardDescription>
+            <CardTitle className="font-mono text-lg">5x5 LASER GRID</CardTitle>
+            <CardDescription>Green = Start (0,0), Blue = Goal (4,4), Red = Revealed Laser</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${laserGrid.size}, 1fr)` }}>
@@ -176,20 +166,28 @@ export function Round3() {
                   const isLaser = revealedLasers.has(key)
                   const isVisited = visitedCells.has(key)
 
-                  let bgColor = "bg-background/50"
-                  if (isStart) bgColor = "bg-green-500/30 border-green-500"
-                  else if (isGoal) bgColor = "bg-blue-500/30 border-blue-500"
-                  else if (isLaser) bgColor = "bg-red-500/30 border-red-500"
-                  else if (isVisited) bgColor = "bg-primary/20"
+                  let bgColor = "bg-background/50 border-border"
+                  let content = ""
+
+                  if (isStart) {
+                    bgColor = "bg-green-500/30 border-green-500"
+                    content = "S"
+                  } else if (isGoal) {
+                    bgColor = "bg-blue-500/30 border-blue-500"
+                    content = "G"
+                  } else if (isLaser) {
+                    bgColor = "bg-red-500/30 border-red-500"
+                    content = "✕"
+                  } else if (isVisited) {
+                    bgColor = "bg-primary/20 border-primary/50"
+                  }
 
                   return (
                     <div
                       key={key}
-                      className={`aspect-square rounded border ${bgColor} flex items-center justify-center text-xs font-mono`}
+                      className={`aspect-square rounded border ${bgColor} flex items-center justify-center text-xs font-mono font-bold`}
                     >
-                      {isStart && "S"}
-                      {isGoal && "G"}
-                      {isLaser && "✕"}
+                      {content}
                     </div>
                   )
                 }),
@@ -201,7 +199,7 @@ export function Round3() {
                 value={commands}
                 onChange={(e) => setCommands(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                placeholder="Enter commands: U D L R"
+                placeholder="Enter path: e.g., DDRRDRRD"
                 className="font-mono text-lg"
                 disabled={round3Attempts <= 0}
               />
@@ -210,13 +208,14 @@ export function Round3() {
                   Submit Path
                 </Button>
                 <Button onClick={handleHint} disabled={hintUsed || hintsUsed >= MAX_HINTS} variant="outline">
-                  Hint
+                  Hint ({MAX_HINTS - hintsUsed} left)
                 </Button>
               </div>
             </div>
 
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
               <p className="font-mono text-sm font-medium text-destructive">ATTEMPTS LEFT: {round3Attempts}</p>
+              <p className="text-xs text-muted-foreground mt-1">If you fail all attempts, you restart from Round 1!</p>
             </div>
           </CardContent>
         </Card>
@@ -224,29 +223,29 @@ export function Round3() {
         <Card className="border-primary/30 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="font-mono text-lg">Navigation Guide</CardTitle>
-            <CardDescription>Movement commands</CardDescription>
+            <CardDescription>Use these commands to navigate</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3 text-sm">
               <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
                 <p className="mb-1 font-mono text-xs font-medium text-accent">U = UP</p>
-                <p className="text-muted-foreground">Move one cell upward</p>
+                <p className="text-muted-foreground">Move one cell upward (row - 1)</p>
               </div>
               <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
                 <p className="mb-1 font-mono text-xs font-medium text-accent">D = DOWN</p>
-                <p className="text-muted-foreground">Move one cell downward</p>
+                <p className="text-muted-foreground">Move one cell downward (row + 1)</p>
               </div>
               <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
                 <p className="mb-1 font-mono text-xs font-medium text-accent">L = LEFT</p>
-                <p className="text-muted-foreground">Move one cell to the left</p>
+                <p className="text-muted-foreground">Move one cell to the left (col - 1)</p>
               </div>
               <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
                 <p className="mb-1 font-mono text-xs font-medium text-accent">R = RIGHT</p>
-                <p className="text-muted-foreground">Move one cell to the right</p>
+                <p className="text-muted-foreground">Move one cell to the right (col + 1)</p>
               </div>
               <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
-                <p className="font-mono text-xs font-medium">Example: DDRR</p>
-                <p className="text-muted-foreground">Moves down twice, then right twice</p>
+                <p className="font-mono text-xs font-medium">Goal: Reach (4,4) from (0,0)</p>
+                <p className="text-muted-foreground">Avoid hidden lasers - they are revealed when you hit them!</p>
               </div>
             </div>
           </CardContent>

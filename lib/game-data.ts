@@ -25,9 +25,9 @@ export const USERS: Record<string, string> = {
   host: "admin",
 }
 
-export const MAX_HINTS = 2
+export const MAX_HINTS = 3
 export const HINT_PENALTY = 5
-export const MISSION_TIME = 25 * 60 // 25 minutes in seconds
+export const MISSION_TIME = 45 * 60 // 45 minutes in seconds
 
 export const ROUND1_QUESTIONS: Round1Question[] = [
   {
@@ -64,17 +64,17 @@ export const ROUND1_QUESTIONS: Round1Question[] = [
 
 export const CODE_PUZZLES: CodePuzzle[] = [
   {
-    display: "Puzzle A",
+    display: "Puzzle A - Nested Loops",
     code: `s = 0
 for i in range(1, 6):
     s += i * (i + 2)
 print(s)`,
     answer: "85",
-    hint: "Compute i*(i+2) for i=1..5 then sum.",
+    hint: "Compute i*(i+2) for i=1..5 then sum: 1*3 + 2*4 + 3*5 + 4*6 + 5*7",
   },
   {
-    display: "Puzzle B",
-    code: `arr = [1,3,2,4]
+    display: "Puzzle B - Array Indices",
+    code: `arr = [1, 3, 2, 4]
 s = 0
 for i in range(len(arr)):
     if i % 2 == 0:
@@ -83,23 +83,22 @@ for i in range(len(arr)):
         s += arr[i] * 2
 print(s)`,
     answer: "23",
-    hint: "Even indices ×3, odd indices ×2; sum.",
+    hint: "Even indices ×3, odd indices ×2: (1*3) + (3*2) + (2*3) + (4*2)",
   },
   {
-    display: "Puzzle C",
+    display: "Puzzle C - Conditional Sum",
     code: `x = 1
 for i in range(1, 6):
     if i % 2 == 0:
-        x += i*i
+        x += i * i
     else:
         x += i
 print(x)`,
     answer: "30",
-    hint: "Add i for odd i; add i^2 for even i; start x=1.",
+    hint: "Add i for odd i; add i² for even i; start x=1: 1+1+4+3+16+5",
   },
 ]
 
-// Simplified cryptarithm examples
 export const CRYPTO_TEMPLATES = [
   {
     type: "simple" as const,
@@ -107,26 +106,14 @@ export const CRYPTO_TEMPLATES = [
     solution: { A: 1, B: 8, C: 2, D: 0 },
     result: 210,
   },
-  {
-    type: "simple" as const,
-    display: "XY × 2 = YX",
-    solution: { X: 3, Y: 6 },
-    result: 63,
-  },
 ]
 
 export function generateCrypto(): CryptoData {
-  const template = CRYPTO_TEMPLATES[Math.floor(Math.random() * CRYPTO_TEMPLATES.length)]
-
+  const template = CRYPTO_TEMPLATES[0]
   return {
     type: "add",
     display: template.display,
     words: [],
-    solutions: [
-      {
-        mapping: template.solution,
-        result: template.result,
-      },
-    ],
+    solutions: [{ mapping: template.solution, result: template.result }],
   }
 }

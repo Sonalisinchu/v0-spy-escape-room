@@ -1,28 +1,35 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useGame } from "@/lib/game-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { MAX_HINTS } from "@/lib/game-data"
 
 export function LoginScreen() {
-  const { login, startTimer, resetTimer, missionTimeLeft, timerRunning, agentCredentials } = useGame()
+  const { login, startTimer, resetTimer, missionTimeLeft, timerRunning, agentCredentials, loadAgentsFromDb } = useGame()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    loadAgentsFromDb()
+  }, [loadAgentsFromDb])
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setLoading(true)
 
-    const success = login(username, password)
+    const success = await login(username, password)
     if (!success) {
       setError("Invalid credentials. Access denied.")
     }
+    setLoading(false)
   }
 
   const minutes = Math.floor(missionTimeLeft / 60)
@@ -44,12 +51,12 @@ export function LoginScreen() {
             <ol className="list-inside list-decimal space-y-2 border-l-2 border-accent pl-4">
               <li>Extract five intel fragments (Round 1).</li>
               <li>Decode enemy communication (Round 2).</li>
-              <li>Solve the cryptarithm lock (Round 3) to escape.</li>
+              <li>Navigate the laser grid (Round 3) to escape.</li>
             </ol>
 
             <p className="rounded-md border border-primary/30 bg-primary/5 p-3">
-              You will have limited hints (max 2). Round 3 allows 3 attempts and one special hint. Proceed carefully —
-              mission control will monitor your progress.
+              You have {MAX_HINTS} hints available across the mission. Round 3 allows 3 attempts. If you fail Round 3,
+              you restart from Round 1 but the timer continues!
             </p>
           </div>
 
@@ -94,8 +101,9 @@ export function LoginScreen() {
                     id="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="agent007"
+                    placeholder="Enter your agent ID"
                     className="font-mono"
+                    disabled={loading}
                   />
                 </div>
 
@@ -108,8 +116,9 @@ export function LoginScreen() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder="Enter your password"
                     className="font-mono"
+                    disabled={loading}
                   />
                 </div>
 
@@ -119,19 +128,19 @@ export function LoginScreen() {
                   </div>
                 )}
 
-                <Button type="submit" className="w-full font-mono">
-                  CONNECT TO MISSION
+                <Button type="submit" className="w-full font-mono" disabled={loading}>
+                  {loading ? "CONNECTING..." : "CONNECT TO MISSION"}
                 </Button>
 
                 {agentCredentials.length > 0 && (
                   <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
                     <p className="mb-1 font-mono font-medium">Registered agents:</p>
-                    {agentCredentials.slice(0, 3).map((agent) => (
+                    {agentCredentials.slice(0, 5).map((agent) => (
                       <p key={agent.username}>
                         {agent.displayName} ({agent.username})
                       </p>
                     ))}
-                    {agentCredentials.length > 3 && <p>... and {agentCredentials.length - 3} more</p>}
+                    {agentCredentials.length > 5 && <p>... and {agentCredentials.length - 5} more</p>}
                   </div>
                 )}
               </form>
